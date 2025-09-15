@@ -1,14 +1,16 @@
 <?php
 session_start();
 
-// Configuração da conexão com o banco de dados
+// Credenciais do banco de dados (Host Interno)
 $servername = "sites_sql";
 $username = "mysql";
 $password = "Miguel@18032018";
 $dbname = "sites";
 
+// Cria a conexão
 $conn = new mysqli($servername, $username, $password, $dbname);
 
+// Verifica a conexão e redireciona se falhar
 if ($conn->connect_error) {
     die("Falha na conexão: " . $conn->connect_error);
 }
@@ -29,8 +31,10 @@ $user_name = $is_authenticated ? $_SESSION['user_name'] : '';
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
     <script>
+        // Variáveis globais para o JavaScript
         const IS_AUTHENTICATED = <?php echo json_encode($is_authenticated); ?>;
         const USER_NAME = <?php echo json_encode($user_name); ?>;
+        const USER_ID = <?php echo json_encode($_SESSION['user_id'] ?? null); ?>;
     </script>
 </head>
 
@@ -39,7 +43,7 @@ $user_name = $is_authenticated ? $_SESSION['user_name'] : '';
     <!-- Cabeçalho -->
     <header class="header-bg py-4 px-6 shadow-md">
         <div class="container flex justify-between items-center">
-            <h1 class="text-3xl font-bold">Leilão Online</h1>
+            <a href="index.php" class="text-3xl font-bold">Leilão Online</a>
             <div class="flex-grow max-w-xl mx-8">
                 <input type="text" placeholder="Buscar produtos, marcas e mais..." class="search-input">
             </div>
@@ -234,7 +238,7 @@ $user_name = $is_authenticated ? $_SESSION['user_name'] : '';
     </div>
     <div id="notification-toast" class="hidden"><p id="toast-message"></p></div>
 
-    <script src="script.js" type="module"></script>
+    <script src="script.js"></script>
 </body>
 
 </html>
