@@ -157,13 +157,13 @@ switch ($action) {
         $data = json_decode(file_get_contents('php://input'), true);
         
         // Simulação de validação da IA
-        if (strpos(strtolower($data['description']), 'arma') !== false || strpos(strtolower($data['product_name']), 'arma') !== false) {
+        if (strpos(strtolower($data['description']), 'arma') !== false || strpos(strtolower($data['name']), 'arma') !== false) {
             echo json_encode(['success' => false, 'message' => 'Anúncio reprovado pela análise de IA. Motivo: Conteúdo proibido.']);
             exit();
         }
 
         $stmt = $conn->prepare("INSERT INTO auctions (product_name, description, category, `condition`, market_value, fipe_value, functional_condition, has_min_price, min_price, start_price, current_bid, bids, end_time, seller_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssssddsdiidisi", $data['name'], $data['description'], $data['category'], $data['condition'], $data['market_value'], $data['fipe_value'], $data['functional_condition'], $data['has_min_price'], $data['min_price'], $data['start_price'], $data['start_price'], $data['bids'], $data['end_time'], $_SESSION['user_id']);
+        $stmt->bind_param("ssssddsidddisi", $data['name'], $data['description'], $data['category'], $data['condition'], $data['market_value'], $data['fipe_value'], $data['functional_condition'], $data['has_min_price'], $data['min_price'], $data['start_price'], $data['start_price'], $data['bids'], $data['end_time'], $_SESSION['user_id']);
         
         if ($stmt->execute()) {
             echo json_encode(['success' => true, 'message' => 'Produto anunciado com sucesso!']);
