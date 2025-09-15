@@ -2,14 +2,16 @@
 session_start();
 header('Content-Type: application/json');
 
-// Configuração da conexão com o banco de dados
+// Credenciais do banco de dados (Host Interno)
 $servername = "sites_sql";
 $username = "mysql";
 $password = "Miguel@18032018";
 $dbname = "sites";
 
+// Cria a conexão
 $conn = new mysqli($servername, $username, $password, $dbname);
 
+// Verifica a conexão e retorna um erro se falhar
 if ($conn->connect_error) {
     echo json_encode(['success' => false, 'message' => "Falha na conexão: " . $conn->connect_error]);
     exit();
@@ -29,6 +31,7 @@ switch ($action) {
             exit();
         }
 
+        // Criptografa a senha antes de salvar
         $password_hash = password_hash($password, PASSWORD_DEFAULT);
         $stmt = $conn->prepare("INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)");
         $stmt->bind_param("sss", $name, $email, $password_hash);
@@ -36,9 +39,9 @@ switch ($action) {
         if ($stmt->execute()) {
             $_SESSION['user_id'] = $stmt->insert_id;
             $_SESSION['user_name'] = $name;
-            echo json_encode(['success' => true, 'message' => 'Cadastro realizado com sucesso!', 'userId' => $stmt->insert_id, 'userName' => $name]);
+            echo json_encode(['success' => true, 'message' => 'Cadastro realizado com sucesso!']);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Erro ao registrar usuário. Tente outro e-mail.']);
+            echo json_encode(['success' => false, 'message' => 'Erro ao registrar. Tente outro e-mail.']);
         }
         $stmt->close();
         break;
@@ -47,6 +50,7 @@ switch ($action) {
         $data = json_decode(file_get_contents('php://input'), true);
         $email = $data['email'] ?? '';
         $password = $data['password'] ?? '';
+
         $stmt = $conn->prepare("SELECT id, name, password_hash FROM users WHERE email = ?");
         $stmt->bind_param("s", $email);
         $stmt->execute();
@@ -57,7 +61,7 @@ switch ($action) {
         if ($user && password_verify($password, $user['password_hash'])) {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['user_name'] = $user['name'];
-            echo json_encode(['success' => true, 'message' => 'Login bem-sucedido!', 'userId' => $user['id'], 'userName' => $user['name']]);
+            echo json_encode(['success' => true, 'message' => 'Login bem-sucedido!', 'userName' => $user['name']]);
         } else {
             echo json_encode(['success' => false, 'message' => 'E-mail ou senha incorretos.']);
         }
@@ -65,7 +69,7 @@ switch ($action) {
 
     case 'logout':
         session_destroy();
-        echo json_encode(['success' => true, 'message' => 'Sessão encerrada com sucesso.']);
+        echo json_encode(['success' => true, 'message' => 'Sessão encerrada.']);
         break;
 
     case 'list_auctions':
@@ -92,25 +96,49 @@ switch ($action) {
         break;
 
     case 'place_bid':
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'Você precisa estar logado para dar um lance.']);
+            exit();
+        }
+        
         $data = json_decode(file_get_contents('php://input'), true);
         $auction_id = $data['auction_id'] ?? 0;
         $bid_amount = $data['bid_amount'] ?? 0;
-        $bidder_id = $_SESSION['user_id'] ?? 0;
+        $bidder_id = $_SESSION['user_id'];
 
-        $stmt = $conn->prepare("SELECT current_bid FROM auctions WHERE id = ?");
+        // Recupera o lance atual
+        $stmt = $conn->prepare("SELECT current_bid, highest_bidder_id FROM auctions WHERE id = ?");
         $stmt->bind_param("i", $auction_id);
         $stmt->execute();
         $result = $stmt->get_result();
-        $current_bid = $result->fetch_assoc()['current_bid'];
+        $auction = $result->fetch_assoc();
         $stmt->close();
 
-        if ($bid_amount <= $current_bid) {
+        if ($auction_id === $bidder_id) {
+            echo json_encode(['success' => false, 'message' => 'Você não pode dar lances em seus próprios leilões.']);
+            exit();
+        }
+
+        if ($bid_amount <= $auction['current_bid']) {
             echo json_encode(['success' => false, 'message' => 'Seu lance deve ser maior que o lance atual.']);
             exit();
         }
 
-        $stmt = $conn->prepare("UPDATE auctions SET current_bid = ?, bids = bids + 1, highest_bidder_id = ?, end_time = DATE_ADD(end_time, INTERVAL 1 MINUTE) WHERE id = ? AND end_time > NOW()");
-        $stmt->bind_param("dii", $bid_amount, $bidder_id, $auction_id);
+        // Adiciona um tempo extra ao leilão
+        $extra_time = 0;
+        $now = new DateTime();
+        $end_time = new DateTime($auction['end_time']);
+        $time_left = $now->diff($end_time)->s + ($now->diff($end_time)->i * 60);
+
+        if ($time_left < 1800) { // 30 minutos
+            $extra_time = 60; // 1 minuto
+        }
+        if ($time_left < 60) { // 1 minuto
+            $extra_time = 15; // 15 segundos
+        }
+        
+        $stmt = $conn->prepare("UPDATE auctions SET current_bid = ?, bids = bids + 1, highest_bidder_id = ?, end_time = DATE_ADD(end_time, INTERVAL ? SECOND) WHERE id = ?");
+        $stmt->bind_param("diii", $bid_amount, $bidder_id, $extra_time, $auction_id);
         if ($stmt->execute()) {
             echo json_encode(['success' => true, 'message' => 'Lance realizado com sucesso!']);
         } else {
@@ -120,12 +148,21 @@ switch ($action) {
         break;
 
     case 'create_auction':
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'Você precisa estar logado para anunciar um produto.']);
+            exit();
+        }
+
         $data = json_decode(file_get_contents('php://input'), true);
-        // ... (Validação e inserção de dados no banco de dados)
-        // A lógica de validação do Gemini AI seria aqui no servidor antes de salvar no DB
-        // ...
+        
+        // Simulação de validação da IA
+        if (strpos(strtolower($data['description']), 'arma') !== false || strpos(strtolower($data['product_name']), 'arma') !== false) {
+            echo json_encode(['success' => false, 'message' => 'Anúncio reprovado pela análise de IA. Motivo: Conteúdo proibido.']);
+            exit();
+        }
+
         $stmt = $conn->prepare("INSERT INTO auctions (product_name, description, category, `condition`, market_value, fipe_value, functional_condition, has_min_price, min_price, start_price, current_bid, bids, end_time, seller_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssssddisiddisi", $data['name'], $data['description'], $data['category'], $data['condition'], $data['market_value'], $data['fipe_value'], $data['functional_condition'], $data['has_min_price'], $data['min_price'], $data['start_price'], $data['start_price'], $data['bids'], $data['end_time'], $_SESSION['user_id']);
+        $stmt->bind_param("ssssddisdddisi", $data['name'], $data['description'], $data['category'], $data['condition'], $data['market_value'], $data['fipe_value'], $data['functional_condition'], $data['has_min_price'], $data['min_price'], $data['start_price'], $data['start_price'], $data['bids'], $data['end_time'], $_SESSION['user_id']);
         
         if ($stmt->execute()) {
             echo json_encode(['success' => true, 'message' => 'Produto anunciado com sucesso!']);
@@ -136,8 +173,12 @@ switch ($action) {
         break;
         
     case 'my_bids':
-        $user_id = $_SESSION['user_id'] ?? 0;
-        $stmt = $conn->prepare("SELECT * FROM auctions WHERE highest_bidder_id = ? AND end_time < NOW()");
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'Você precisa estar logado para ver suas compras.']);
+            exit();
+        }
+        $user_id = $_SESSION['user_id'];
+        $stmt = $conn->prepare("SELECT a.*, u.name AS seller_name FROM auctions a JOIN users u ON a.seller_id = u.id WHERE a.highest_bidder_id = ? AND a.end_time < NOW()");
         $stmt->bind_param("i", $user_id);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -150,7 +191,11 @@ switch ($action) {
         break;
         
     case 'my_sales':
-        $user_id = $_SESSION['user_id'] ?? 0;
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'Você precisa estar logado para ver suas vendas.']);
+            exit();
+        }
+        $user_id = $_SESSION['user_id'];
         $stmt = $conn->prepare("SELECT * FROM auctions WHERE seller_id = ? AND end_time < NOW()");
         $stmt->bind_param("i", $user_id);
         $stmt->execute();
@@ -164,6 +209,10 @@ switch ($action) {
         break;
         
     case 'confirm_receipt':
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'Você precisa estar logado para confirmar o recebimento.']);
+            exit();
+        }
         $data = json_decode(file_get_contents('php://input'), true);
         $auction_id = $data['auction_id'] ?? 0;
         $stmt = $conn->prepare("UPDATE auctions SET payment_status = 'Valor liberado para saque' WHERE id = ?");
@@ -177,6 +226,10 @@ switch ($action) {
         break;
         
     case 'pay_now':
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'Você precisa estar logado para realizar o pagamento.']);
+            exit();
+        }
         $data = json_decode(file_get_contents('php://input'), true);
         $auction_id = $data['auction_id'] ?? 0;
         $stmt = $conn->prepare("UPDATE auctions SET payment_status = 'Aguardando confirmação de recebimento' WHERE id = ?");
@@ -195,4 +248,3 @@ switch ($action) {
 }
 
 $conn->close();
-?>
