@@ -1,4 +1,5 @@
-// Este arquivo gerencia toda a lógica do lado do cliente
+// Este arquivo gerencia toda a lógica do lado do cliente e a comunicação com a API PHP.
+
 const mainContent = document.getElementById('main-content');
 const auctionsContainer = document.getElementById('auctions-container');
 const loadingMessage = document.getElementById('loading');
@@ -184,6 +185,45 @@ async function loadPageContent() {
     }
 }
 
+// Lógica de autenticação
+if (document.getElementById('register-button')) {
+    document.getElementById('register-button').addEventListener('click', async () => {
+        const name = document.getElementById('register-name').value;
+        const email = document.getElementById('register-email').value;
+        const password = document.getElementById('register-password').value;
+        const res = await fetch('api.php?action=register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+            window.location.href = 'index.php';
+        } else {
+            authErrorMessage.textContent = data.message;
+            authErrorMessage.classList.remove('hidden');
+        }
+    });
+}
+if (document.getElementById('login-button')) {
+    document.getElementById('login-button').addEventListener('click', async () => {
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        const res = await fetch('api.php?action=login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+            window.location.href = 'index.php';
+        } else {
+            authErrorMessage.textContent = data.message;
+            authErrorMessage.classList.remove('hidden');
+        }
+    });
+}
+
 // Lógica para o formulário de anúncio (dentro de vender)
 if (document.getElementById('vender')) {
     const minPriceCheck = document.getElementById('min-price-check');
@@ -248,6 +288,9 @@ if (document.getElementById('vender')) {
 async function renderProductDetail(auction) {
     const detailContent = document.getElementById('product-detail-content');
     if (!detailContent) return;
+    
+    // Converte a data de término do leilão para o formato JavaScript
+    const endTime = new Date(auction.end_time.replace(/-/g, '/'));
 
     detailContent.innerHTML = `
         <div class="w-full md:w-1/2">
@@ -280,7 +323,7 @@ async function renderProductDetail(auction) {
             </div>
         </div>
     `;
-    updateCountdownDetail(auction.end_time);
+    updateCountdownDetail(endTime, auction.id);
     
     // Lógica para o lance e o botão de pagamento
     const placeBidButton = document.getElementById('place-bid-button');
@@ -318,24 +361,26 @@ async function renderProductDetail(auction) {
     }
 }
 
-function updateCountdownDetail(endTime) {
+function updateCountdownDetail(endTime, auctionId) {
     const timerElement = document.getElementById('detail-countdown');
     if (!timerElement) return;
 
     setInterval(async () => {
         const now = Date.now();
-        const distance = new Date(endTime).getTime() - now;
+        const distance = endTime.getTime() - now;
         if (distance < 0) {
             timerElement.innerHTML = "Leilão Encerrado!";
             timerElement.classList.remove('timer-green', 'timer-yellow', 'timer-red');
             timerElement.classList.add('bg-gray-400', 'text-gray-800');
-            const res = await fetch(`api.php?action=get_auction_detail&id=${urlParams.get('auction_id')}`);
+            
+            const res = await fetch(`api.php?action=get_auction_detail&id=${auctionId}`);
             const data = await res.json();
             if (data.success && data.auction) {
                 const auction = data.auction;
                 const winnerInfo = document.getElementById('winner-info');
                 const payNowButton = document.getElementById('pay-now-button');
-                if (auction.highest_bidder_id == USER_ID) { // USER_ID não está definido aqui, o ideal seria passar por uma sessão segura.
+                
+                if (auction.highest_bidder_id == USER_ID) {
                     winnerInfo.innerHTML = `<p class="text-green-500 font-bold">Parabéns! Você venceu o leilão!</p>`;
                     if (auction.payment_status === 'Aguardando Pagamento') {
                         payNowButton.classList.remove('hidden');
