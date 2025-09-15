@@ -247,6 +247,45 @@ if (document.getElementById('vender')) {
     const startPriceInput = document.getElementById('start-price');
     const feeMessage = document.getElementById('fee-message');
     const submitButton = document.getElementById('submit-ad');
+    const validationError = document.getElementById('validation-error');
+    
+    // Validação de dados antes de enviar
+    function validateProductData() {
+        const name = document.getElementById('product-name').value.trim();
+        const description = document.getElementById('product-description').value.trim();
+        const category = document.getElementById('product-category').value;
+        const condition = document.getElementById('product-condition').value;
+        const functionalCondition = document.getElementById('functional-condition').value;
+        const endDate = document.getElementById('auction-end-date').value;
+
+        if (!name || !description || !category || !condition || !functionalCondition || !endDate) {
+            validationError.textContent = 'Por favor, preencha todos os campos obrigatórios.';
+            validationError.classList.remove('hidden');
+            return false;
+        }
+
+        const now = new Date();
+        const endTime = new Date(endDate);
+        const diffInDays = (endTime - now) / (1000 * 60 * 60 * 24);
+        if (diffInDays < 7 || diffInDays > 30) {
+            validationError.textContent = 'A data de término do leilão deve ser entre 7 e 30 dias.';
+            validationError.classList.remove('hidden');
+            return false;
+        }
+
+        if (minPriceCheck.checked) {
+            const minPrice = parseFloat(minPriceInput.value);
+            const startPrice = parseFloat(startPriceInput.value);
+            if (isNaN(minPrice) || isNaN(startPrice) || startPrice > (minPrice * 0.5)) {
+                validationError.textContent = 'O lance inicial não pode ser superior a 50% do valor mínimo.';
+                validationError.classList.remove('hidden');
+                return false;
+            }
+        }
+        
+        validationError.classList.add('hidden');
+        return true;
+    }
 
     minPriceCheck.addEventListener('change', (e) => {
         minPriceSection.classList.toggle('hidden', !e.target.checked);
@@ -270,6 +309,10 @@ if (document.getElementById('vender')) {
     });
 
     submitButton.addEventListener('click', async () => {
+        if (!validateProductData()) {
+            return;
+        }
+        
         const productData = {
             name: document.getElementById('product-name').value,
             description: document.getElementById('product-description').value,
@@ -285,17 +328,28 @@ if (document.getElementById('vender')) {
             bids: 0
         };
 
-        const res = await fetch('api.php?action=create_auction', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(productData)
-        });
-        const data = await res.json();
-        if (data.success) {
-            showToast(data.message);
-            window.location.href = 'index.php';
-        } else {
-            showToast(data.message);
+        console.log("Dados a serem enviados:", productData);
+        
+        try {
+            const res = await fetch('api.php?action=create_auction', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(productData)
+            });
+            const data = await res.json();
+            console.log("Resposta do servidor:", data);
+            
+            if (data.success) {
+                showToast(data.message);
+                window.location.href = 'index.php';
+            } else {
+                validationError.textContent = data.message;
+                validationError.classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error('Erro na requisição:', error);
+            validationError.textContent = 'Erro de conexão com o servidor. Tente novamente.';
+            validationError.classList.remove('hidden');
         }
     });
 }
