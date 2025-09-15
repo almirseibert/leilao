@@ -188,19 +188,27 @@ async function loadPageContent() {
 // Lógica de autenticação
 if (document.getElementById('register-button')) {
     document.getElementById('register-button').addEventListener('click', async () => {
+        console.log('Botão de Cadastro Clicado.');
         const name = document.getElementById('register-name').value;
         const email = document.getElementById('register-email').value;
         const password = document.getElementById('register-password').value;
-        const res = await fetch('api.php?action=register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, email, password })
-        });
-        const data = await res.json();
-        if (data.success) {
-            window.location.href = 'index.php';
-        } else {
-            authErrorMessage.textContent = data.message;
+        try {
+            const res = await fetch('api.php?action=register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email, password })
+            });
+            const data = await res.json();
+            console.log('Resposta da API:', data);
+            if (data.success) {
+                window.location.href = 'index.php';
+            } else {
+                authErrorMessage.textContent = data.message;
+                authErrorMessage.classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error('Erro na requisição:', error);
+            authErrorMessage.textContent = 'Erro de conexão. Verifique sua conexão ou a URL da API.';
             authErrorMessage.classList.remove('hidden');
         }
     });
@@ -209,16 +217,23 @@ if (document.getElementById('login-button')) {
     document.getElementById('login-button').addEventListener('click', async () => {
         const email = document.getElementById('login-email').value;
         const password = document.getElementById('login-password').value;
-        const res = await fetch('api.php?action=login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-        });
-        const data = await res.json();
-        if (data.success) {
-            window.location.href = 'index.php';
-        } else {
-            authErrorMessage.textContent = data.message;
+        try {
+            const res = await fetch('api.php?action=login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            const data = await res.json();
+            console.log('Resposta da API:', data);
+            if (data.success) {
+                window.location.href = 'index.php';
+            } else {
+                authErrorMessage.textContent = data.message;
+                authErrorMessage.classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error('Erro na requisição:', error);
+            authErrorMessage.textContent = 'Erro de conexão. Verifique sua conexão ou a URL da API.';
             authErrorMessage.classList.remove('hidden');
         }
     });
