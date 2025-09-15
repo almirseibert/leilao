@@ -41,7 +41,7 @@ switch ($action) {
             $_SESSION['user_name'] = $name;
             echo json_encode(['success' => true, 'message' => 'Cadastro realizado com sucesso!']);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Erro ao registrar. Tente outro e-mail.']);
+            echo json_encode(['success' => false, 'message' => 'Erro ao registrar. ' . $stmt->error]);
         }
         $stmt->close();
         break;
@@ -142,7 +142,7 @@ switch ($action) {
         if ($stmt->execute()) {
             echo json_encode(['success' => true, 'message' => 'Lance realizado com sucesso!']);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Erro ao registrar o lance.']);
+            echo json_encode(['success' => false, 'message' => 'Erro ao registrar o lance. ' . $stmt->error]);
         }
         $stmt->close();
         break;
@@ -162,12 +162,12 @@ switch ($action) {
         }
 
         $stmt = $conn->prepare("INSERT INTO auctions (product_name, description, category, `condition`, market_value, fipe_value, functional_condition, has_min_price, min_price, start_price, current_bid, bids, end_time, seller_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssssddisdddisi", $data['name'], $data['description'], $data['category'], $data['condition'], $data['market_value'], $data['fipe_value'], $data['functional_condition'], $data['has_min_price'], $data['min_price'], $data['start_price'], $data['start_price'], $data['bids'], $data['end_time'], $_SESSION['user_id']);
+        $stmt->bind_param("ssssddisiddisi", $data['name'], $data['description'], $data['category'], $data['condition'], $data['market_value'], $data['fipe_value'], $data['functional_condition'], $data['has_min_price'], $data['min_price'], $data['start_price'], $data['start_price'], $data['bids'], $data['end_time'], $_SESSION['user_id']);
         
         if ($stmt->execute()) {
             echo json_encode(['success' => true, 'message' => 'Produto anunciado com sucesso!']);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Erro ao anunciar o produto.']);
+            echo json_encode(['success' => false, 'message' => 'Erro ao anunciar o produto. ' . $stmt->error]);
         }
         $stmt->close();
         break;
@@ -220,7 +220,7 @@ switch ($action) {
         if ($stmt->execute()) {
             echo json_encode(['success' => true, 'message' => 'Recebimento confirmado! O valor será liberado para o vendedor em 7 dias.']);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Erro ao confirmar o recebimento.']);
+            echo json_encode(['success' => false, 'message' => 'Erro ao confirmar o recebimento. ' . $stmt->error]);
         }
         $stmt->close();
         break;
@@ -237,7 +237,7 @@ switch ($action) {
         if ($stmt->execute()) {
             echo json_encode(['success' => true, 'message' => 'Pagamento simulado. O valor está retido.']);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Erro ao processar o pagamento.']);
+            echo json_encode(['success' => false, 'message' => 'Erro ao processar o pagamento. ' . $stmt->error]);
         }
         $stmt->close();
         break;
