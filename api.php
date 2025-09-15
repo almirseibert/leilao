@@ -41,6 +41,7 @@ switch ($action) {
             $_SESSION['user_name'] = $name;
             echo json_encode(['success' => true, 'message' => 'Cadastro realizado com sucesso!']);
         } else {
+            // Retorna o erro exato do MySQL para depuração
             echo json_encode(['success' => false, 'message' => 'Erro ao registrar. ' . $stmt->error]);
         }
         $stmt->close();
